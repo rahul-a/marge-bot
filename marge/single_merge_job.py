@@ -6,6 +6,7 @@ from datetime import datetime
 from . import git, gitlab
 from .commit import Commit
 from .job import CannotMerge, GitLabRebaseResultMismatch, MergeJob, SkipMerge
+from .pipeline import Pipeline
 
 
 class SingleMergeJob(MergeJob):
@@ -21,8 +22,7 @@ class SingleMergeJob(MergeJob):
         log.info('Processing !%s - %r', merge_request.iid, merge_request.title)
 
         try:
-            approvals = merge_request.fetch_approvals()
-            self.update_merge_request_and_accept(approvals)
+            self.trigger_pipeline_for_merge_request(self._api, merge_request)
             log.info('Successfully merged !%s.', merge_request.info['iid'])
         except SkipMerge as err:
             log.warning("Skipping MR !%s: %s", merge_request.info['iid'], err.reason)
@@ -161,6 +161,12 @@ class SingleMergeJob(MergeJob):
             else:
                 self.wait_for_branch_to_be_merged()
                 updated_into_up_to_date_target_branch = True
+
+    def trigger_pipeline_for_merge_request(self, api, merge_request):
+        approvals = merge_request.fetch_approvals()
+        pipeline_info = Pipeline.create_pipeline(merge_request.target_project_id, merge_request.source_branch, api)
+        log.info('Fresh pipeline triggered for merge request: %s', merge_request.iid)
+        self.update_merge_request_and_accept(approvals)
 
     def wait_for_branch_to_be_merged(self):
         merge_request = self._merge_request
