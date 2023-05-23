@@ -1,6 +1,6 @@
 from unittest.mock import Mock
 
-from marge.gitlab import Api, GET
+from marge.gitlab import Api, GET, POST
 from marge.pipeline import Pipeline
 
 
@@ -40,6 +40,16 @@ class TestPipeline:
             '/projects/1234/merge_requests/1/pipelines',
         ))
         assert [pl.info for pl in result] == [pl2, pl1]
+
+    def test_create_pipeline(self):
+        api = self.api
+        pl1 = INFO
+        api.call = Mock(pl1)
+
+        result = Pipeline.create_pipeline(project_id=1234, ref=INFO['ref'], api=api)
+        api.call.assert_called_once_with(POST(
+            '/projects/1234/pipeline?ref=new-pipeline'
+        ))
 
     def test_properties(self):
         pipeline = Pipeline(api=self.api, project_id=1234, info=INFO)

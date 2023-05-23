@@ -1,5 +1,5 @@
+import logging as log
 from . import gitlab
-
 
 GET, POST = gitlab.GET, gitlab.POST
 
@@ -41,6 +41,15 @@ class Pipeline(gitlab.Resource):
         ))
         pipelines_info.sort(key=lambda pipeline_info: pipeline_info['id'], reverse=True)
         return [cls(api, pipeline_info, project_id) for pipeline_info in pipelines_info]
+
+    @classmethod
+    def create_pipeline(cls, project_id, ref, api):
+        pipeline_info = api.call(POST(
+            '/projects/{project_id}/pipeline?ref={ref}'.format(project_id=project_id, ref=ref)
+        ))
+
+        log.debug('Pipeline created: %s', pipeline_info)
+        return pipeline_info
 
     @property
     def project_id(self):
