@@ -1,5 +1,6 @@
 import logging as log
 import time
+import concurrent.futures
 from collections import namedtuple
 from tempfile import TemporaryDirectory
 
@@ -151,35 +152,28 @@ class Bot:
             log.info('Nothing to merge at this point...')
             return
 
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_merge_request = {
+                executor.submit(
+                    self._process_single_merge_request, merge_request, project, repo_manager
+                ): merge_request for merge_request in merge_requests
+            }
+
+            for future in concurrent.futures.as_completed(future_to_merge_request):
+                merge_request = future_to_merge_request[future]
+                try:
+                    future.result()
+                except Exception as err:
+                    log.error('Merge Request %r generated an exception: %s' % (merge_request.iid, err))
+                else:
+                    log.info('Done processing Merge Request %r' % (merge_request.iid))
+
+    def _process_single_merge_request(self, merge_request, project, repo_manager):
         try:
             repo = repo_manager.repo_for_project(project)
         except git.GitError:
             log.exception("Couldn't initialize repository for project!")
             raise
-
-        log.info('Got %s requests to merge;', len(merge_requests))
-        if self._config.batch and len(merge_requests) > 1:
-            log.info('Attempting to merge as many MRs as possible using BatchMergeJob...')
-            batch_merge_job = batch_job.BatchMergeJob(
-                api=self._api,
-                user=self.user,
-                project=project,
-                merge_requests=merge_requests,
-                repo=repo,
-                options=self._config.merge_opts,
-            )
-            try:
-                batch_merge_job.execute()
-                return
-            except batch_job.CannotBatch as err:
-                log.warning('BatchMergeJob aborted: %s', err)
-            except batch_job.CannotMerge as err:
-                log.warning('BatchMergeJob failed: %s', err)
-                return
-            except git.GitError as err:
-                log.exception('BatchMergeJob failed: %s', err)
-        log.info('Attempting to merge the oldest MR...')
-        merge_request = merge_requests[0]
         merge_job = self._get_single_job(
             project=project, merge_request=merge_request, repo=repo,
             options=self._config.merge_opts,
