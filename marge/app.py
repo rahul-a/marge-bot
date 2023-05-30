@@ -242,6 +242,12 @@ def _parse_config(args):  # pylint: disable=too-many-statements
         action='store_true',
         help='Guaranteed final pipeline when assigned to marge-bot'
     )
+    parser.add_argument(
+        '--thread-pool',
+        type=int,
+        default=1,
+        help='Set a thread count for no. of parallel runs',
+    )
 
     config = parser.parse_args(args)
 
@@ -352,6 +358,7 @@ def main(args=None):
             ),
             batch=options.batch,
             cli=options.cli,
+            thread_pool=options.thread_pool
         )
 
         marge_bot = bot.Bot(api=api, config=config)

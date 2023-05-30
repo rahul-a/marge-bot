@@ -152,7 +152,9 @@ class Bot:
             log.info('Nothing to merge at this point...')
             return
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        log.info("Thread Pool Size - %s" % self._config.thread_pool)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self._config.thread_pool) as executor:
             future_to_merge_request = {
                 executor.submit(
                     self._process_single_merge_request, merge_request, project, repo_manager
@@ -193,7 +195,7 @@ class Bot:
 
 class BotConfig(namedtuple('BotConfig',
                            'user use_https auth_token ssh_key_file project_regexp merge_order merge_opts ' +
-                           'git_timeout git_reference_repo branch_regexp source_branch_regexp batch cli')):
+                           'git_timeout git_reference_repo branch_regexp source_branch_regexp batch cli thread_pool')):
     pass
 
 
